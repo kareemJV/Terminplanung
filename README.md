@@ -1,1 +1,1 @@
-# Terminplanung
+Die Webplattform „Syrien-Termin“ ermöglicht Bürgerinnen und Bürgern in Syrien, online behördliche Termine zu vereinbaren – schnell, transparent und ohne Wartezeiten. Sie digitalisiert die Terminvergabe für staatliche Dienstleistungen wie Passbeantragung, Meldewesen, Visa, Grundbuchauskünfte, u.v.m.
