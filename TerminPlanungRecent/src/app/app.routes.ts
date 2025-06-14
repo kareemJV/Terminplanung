@@ -1,13 +1,14 @@
 import { Routes } from '@angular/router';
-import { BookingComponent } from './booking.component';
 import { HomeComponent } from './home.component';
+import { BookingAleppoComponent } from './booking.component';
+
 export const routes: Routes = [
   {
     path: '',
     component: HomeComponent
   },
   {
-    path: 'booking',
-    loadComponent: () => import('./booking.component').then(m => m.BookingComponent)
-  }
+    path: 'booking/:city',
+   component: BookingAleppoComponent }
+  
 ];

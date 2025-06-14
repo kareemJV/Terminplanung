@@ -1,28 +1,17 @@
 import { Component } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-
 @Component({
-  standalone: true,
   selector: 'app-booking',
-  imports: [CommonModule, FormsModule],
-  template: `
-    <h2>Termin buchen</h2>
-    <form (ngSubmit)="submit()">
-      <label for="date">Datum:</label>
-      <input type="date" id="date" name="date" [(ngModel)]="appointmentDate" required>
-      <br /><br />
-      <button type="submit">Absenden</button>
-    </form>
-    <p *ngIf="submitted">Termin gebucht für: {{ appointmentDate }}</p>
-  `
+  templateUrl: './booking.component.html',
+  styleUrls: ['./booking.component.css'],
+  standalone: true,
+  imports: [FormsModule], // hier ggf. FormsModule hinzufügen, wenn noch nicht global importiert
 })
-export class BookingComponent {
-  appointmentDate: string = '';
-  submitted = false;
+export class BookingAleppoComponent {
+  selectedRequest = '';
 
-  submit() {
-    this.submitted = true;
-    console.log('Termin gebucht:', this.appointmentDate);
+  onSubmit() {
+    alert('تم حجز الموعد بنجاح لـ: ' + this.selectedRequest);
+    // Hier kannst du Logik ergänzen, z.B. API-Aufruf, Weiterleitung etc.
   }
 }

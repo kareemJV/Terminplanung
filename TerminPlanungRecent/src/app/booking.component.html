@@ -1,1 +1,30 @@
-<p>booking works!</p>
+<div class="booking-container">
+  <div class="flag-container">
+    <img src="assets/syrian-flag.jpg" alt="علم سوريا" />
+  </div>
+
+  <h1>الجمهورية العربية السورية</h1>
+  <h2>محافظة حلب</h2>
+  <p>يرجى اختيار نوع الطلب الخاص بك لحجز موعد مناسب</p>
+
+  <form (ngSubmit)="onSubmit()" #bookingForm="ngForm">
+    <label for="requestType">نوع الطلب:</label>
+    <select
+      id="requestType"
+      name="requestType"
+      required
+      [(ngModel)]="selectedRequest"
+      #requestType="ngModel"
+    >
+      <option value="" disabled selected>اختر نوع الطلب</option>
+      <option value="استشارة طبية">استشارة طبية</option>
+      <option value="تجديد وثائق">تجديد وثائق</option>
+      <option value="طلبات أخرى">طلبات أخرى</option>
+    </select>
+    <div *ngIf="requestType.invalid && requestType.touched" class="error">
+      يرجى اختيار نوع الطلب
+    </div>
+
+    <button type="submit" [disabled]="bookingForm.invalid">احجز الآن</button>
+  </form>
+</div>

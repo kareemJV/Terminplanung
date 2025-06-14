@@ -1,1 +1,25 @@
-<p>home works!</p>
+<div class="flag-container"></div>
+
+<div class="form-container" dir="rtl" lang="ar">
+  <h2>مرحباً بكم في منصة حجز المواعيد الإلكترونية</h2>
+  <p>يرجى اختيار المدينة ونوع الطلب للمتابعة</p>
+
+  <form (ngSubmit)="onSubmit()" #selectionForm="ngForm">
+
+  <label for="city">المدينة</label>
+  <select id="city" [(ngModel)]="selectedCity" name="city" required #city="ngModel">
+    <option value="" disabled selected>اختر المدينة</option>
+    <option value="aleppo">حلب</option>
+  </select>
+
+  <label for="request">نوع الطلب</label>
+  <select id="request" [(ngModel)]="selectedRequest" name="request" required #request="ngModel">
+    <option value="" disabled selected>اختر نوع الطلب</option>
+    <option value="appointment">حجز موعد</option>
+    <option value="consultation">استشارة</option>
+  </select>
+
+  <button type="submit" [disabled]="selectionForm.invalid">احجز الآن</button>
+</form>
+
+</div>
