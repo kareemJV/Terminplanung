@@ -4,10 +4,16 @@
   </div>
 
   <h1>الجمهورية العربية السورية</h1>
-  <h2>محافظة حلب</h2>
+  <h2>محافظة {{ city === 'Aleppo' ? 'حلب' : city }}</h2>
   <p>يرجى ملء النموذج لحجز موعد</p>
 
+  <!-- Fehlermeldungen anzeigen -->
+  <div *ngIf="hasErrors" class="error-container">
+    <div *ngFor="let error of errors" class="error">{{ error }}</div>
+  </div>
+
   <form (ngSubmit)="onSubmit()" #bookingForm="ngForm">
+    
     <!-- نوع الطلب -->
     <label for="requestType">نوع الطلب:</label>
     <select
@@ -15,6 +21,7 @@
       name="requestType"
       required
       [(ngModel)]="selectedRequest"
+      (ngModelChange)="fetchBookedDates()"
       #requestType="ngModel"
       class="input-field"
     >
@@ -23,9 +30,6 @@
       <option value="تجديد وثائق">تجديد وثائق</option>
       <option value="طلبات أخرى">طلبات أخرى</option>
     </select>
-    <div *ngIf="requestType.invalid && requestType.touched" class="error">
-      يرجى اختيار نوع الطلب
-    </div>
 
     <!-- المدينة -->
     <label for="city">المدينة:</label>
@@ -34,6 +38,7 @@
       name="city"
       required
       [(ngModel)]="city"
+      (ngModelChange)="fetchBookedDates()"
       #cityRef="ngModel"
       class="input-field"
     >
@@ -50,10 +55,8 @@
       [(ngModel)]="name"
       #nameRef="ngModel"
       class="input-field"
+      placeholder="أدخل اسمك الكامل"
     />
-    <div *ngIf="nameRef.invalid && nameRef.touched" class="error">
-      يرجى إدخال الاسم
-    </div>
 
     <!-- البريد الإلكتروني -->
     <label for="email">البريد الإلكتروني:</label>
@@ -65,10 +68,8 @@
       [(ngModel)]="email"
       #emailRef="ngModel"
       class="input-field"
+      placeholder="example@email.com"
     />
-    <div *ngIf="emailRef.invalid && emailRef.touched" class="error">
-      يرجى إدخال بريد إلكتروني صالح
-    </div>
 
     <!-- الوصف -->
     <label for="description">وصف الطلب:</label>
@@ -80,13 +81,11 @@
       [(ngModel)]="description"
       #descriptionRef="ngModel"
       class="input-field"
+      placeholder="اكتب تفاصيل طلبك هنا..."
     ></textarea>
-    <div *ngIf="descriptionRef.invalid && descriptionRef.touched" class="error">
-      يرجى كتابة وصف لطلبك
-    </div>
 
     <!-- التاريخ -->
-    <mat-form-field appearance="fill" class="input-field">
+    <mat-form-field appearance="fill" class="date-field">
       <mat-label>اختر التاريخ</mat-label>
       <input
         matInput
@@ -96,25 +95,35 @@
         #dateRef="ngModel"
         required
         [matDatepickerFilter]="isDateSelectable"
+        [class]="dateClass"
+        readonly
       />
       <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
       <mat-datepicker #picker></mat-datepicker>
     </mat-form-field>
 
-    <div *ngIf="dateRef.invalid && dateRef.touched" class="error">
-      يرجى اختيار التاريخ
+    <!-- Status-Anzeige -->
+    <div *ngIf="date && selectedRequest" class="date-status">
+      <span 
+        [class]="isDateBooked(date, selectedRequest) ? 'status-booked' : 'status-available'"
+        [innerHTML]="isDateBooked(date, selectedRequest) ? 
+          '🔴 هذا الموعد محجوز' : 
+          '✅ الموعد متاح'"
+      ></span>
     </div>
 
-    <!-- Anzeige ob Termin frei oder belegt -->
-    <div *ngIf="date && selectedRequest"
-     [style.color]="isDateBooked(date, selectedRequest) ? 'red' : 'green'"
-     style="font-weight: bold; margin-top: 8px;">
-        {{ isDateBooked(date, selectedRequest) ? 'هذا الموعد محجوز' : 'الموعد متاح' }}
-        </div>
+    <!-- Loading-Anzeige -->
+    <div *ngIf="isSubmitting" class="loading">
+      جاري الحجز... يرجى الانتظار
+    </div>
 
-
-    <button type="submit" [disabled]="bookingForm.invalid" class="btn-submit">
-      احجز الآن
+    <button 
+      type="submit" 
+      [disabled]="bookingForm.invalid || isSubmitting || hasErrors" 
+      class="btn-submit"
+      [class.loading]="isSubmitting"
+    >
+      {{ isSubmitting ? 'جاري الحجز...' : 'احجز الآن' }}
     </button>
   </form>
 </div>
