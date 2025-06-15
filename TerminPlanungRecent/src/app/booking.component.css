@@ -93,3 +93,15 @@ label {
 .btn-submit:hover:not(:disabled) {
   background-color: #1f6391;
 }
+.booked-date .mat-calendar-body-cell-content {
+  background-color: #f44336 !important; /* Rot */
+  color: white;
+  border-radius: 50%;
+}
+
+.available-date .mat-calendar-body-cell-content {
+  background-color: #4caf50 !important; /* Grün */
+  color: white;
+  border-radius: 50%;
+}
+

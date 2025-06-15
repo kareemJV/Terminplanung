@@ -78,7 +78,7 @@ app.delete('/api/admin/bookings/:id', (req, res) => {
   }
 });
 
-// ✅ POST: Neue Buchung speichern
+// POST: Neue Buchung speichern
 app.post('/api/book', (req, res) => {
   const { name, city, date, requestType, description, email } = req.body;
 
@@ -86,6 +86,17 @@ app.post('/api/book', (req, res) => {
     return res.status(400).json({ error: 'املا الكل من فضلك' });
   }
 
+  // Prüfen, ob Termin schon gebucht ist
+  const existingBooking = db.prepare(`
+    SELECT * FROM bookings 
+    WHERE date = ? AND city = ? AND requestType = ?
+  `).get(date, city, requestType);
+
+  if (existingBooking) {
+    return res.status(409).json({ error: 'هذا الموعد محجوز بالفعل' }); // Conflict
+  }
+
+  // Termin ist frei -> Eintragen
   const stmt = db.prepare(`
     INSERT INTO bookings (name, city, date, requestType, description, email)
     VALUES (?, ?, ?, ?, ?, ?)
@@ -94,7 +105,7 @@ app.post('/api/book', (req, res) => {
 
   console.log('تم الحفظ تحت الرقم:', info.lastInsertRowid);
 
-  // ✅ E-Mail senden
+  // E-Mail senden
   const mailOptions = {
     from: 'iptv7845@gmail.com',
     to: email,
@@ -110,8 +121,9 @@ app.post('/api/book', (req, res) => {
     }
   });
 
-  res.status(201).json({ message: 'تم الحفظ بنجاح!' });
+  res.status(201).json({ message: 'تم الحجز بنجاح!' });
 });
+
 
 // (optional)
 app.get('/api/bookings', (req, res) => {

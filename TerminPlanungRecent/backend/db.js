@@ -2,7 +2,7 @@ const Database = require('better-sqlite3');
 const db = new Database('./bookings.db');
 
 // Tabelle löschen
-db.prepare(`DROP TABLE IF EXISTS bookings`).run();
+//db.prepare(`DROP TABLE IF EXISTS bookings`).run();
 
 // Tabelle erstellen (wenn sie noch nicht existiert)
 db.prepare(`

@@ -18,7 +18,7 @@
       #requestType="ngModel"
       class="input-field"
     >
-      <option value="" disabled selected>اختر نوع الطلب</option>
+      <option value="" disabled>اختر نوع الطلب</option>
       <option value="اخراج وثائق">إخراج وثائق</option>
       <option value="تجديد وثائق">تجديد وثائق</option>
       <option value="طلبات أخرى">طلبات أخرى</option>
@@ -86,19 +86,32 @@
     </div>
 
     <!-- التاريخ -->
-    <label for="date">اختر التاريخ:</label>
-    <input
-      type="date"
-      id="date"
-      name="date"
-      required
-      [(ngModel)]="date"
-      #dateRef="ngModel"
-      class="input-field"
-    />
+    <mat-form-field appearance="fill" class="input-field">
+      <mat-label>اختر التاريخ</mat-label>
+      <input
+        matInput
+        [matDatepicker]="picker"
+        [(ngModel)]="date"
+        name="date"
+        #dateRef="ngModel"
+        required
+        [matDatepickerFilter]="isDateSelectable"
+      />
+      <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+      <mat-datepicker #picker></mat-datepicker>
+    </mat-form-field>
+
     <div *ngIf="dateRef.invalid && dateRef.touched" class="error">
       يرجى اختيار التاريخ
     </div>
+
+    <!-- Anzeige ob Termin frei oder belegt -->
+    <div *ngIf="date && selectedRequest"
+     [style.color]="isDateBooked(date, selectedRequest) ? 'red' : 'green'"
+     style="font-weight: bold; margin-top: 8px;">
+        {{ isDateBooked(date, selectedRequest) ? 'هذا الموعد محجوز' : 'الموعد متاح' }}
+        </div>
+
 
     <button type="submit" [disabled]="bookingForm.invalid" class="btn-submit">
       احجز الآن
