@@ -1,33 +1,0 @@
-<div class="admin-container">
-  <h2>📋 كل الحجوز
-  </h2>
-
-  <table>
-    <thead>
-      <tr>
-        <th>الرقم</th>
-        <th>الاسم</th>
-        <th>المدينة</th>
-        <th>الطلب</th>
-        <th>التاريخ</th>
-        <th>السبب</th>
-        <th>حذف</th>
-        <button (click)="logout()">Logout</button>
-        <button (click)="downloadCSV()">تحميل المواعيد</button>
-      </tr>
-    </thead>
-    <tbody>
-      <tr *ngFor="let b of bookings">
-        <td>{{ b.id }}</td>
-        <td>{{ b.name }}</td>
-        <td>{{ b.city }}</td>
-        <td>{{ b.requestType }}</td>
-        <td>{{ b.date }}</td>
-        <td>{{ b.description }}</td>
-        <td><button (click)="deleteBooking(b.id)">🗑️</button>
-     
-        </td>
-      </tr>
-    </tbody>
-  </table>
-</div>
