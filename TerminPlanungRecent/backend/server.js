@@ -124,6 +124,15 @@ app.post('/api/book', (req, res) => {
   res.status(201).json({ message: 'تم الحجز بنجاح!' });
 });
 
+// Hole alle belegten Termine für eine Stadt (optional auch requestType)
+app.get('/api/booked-dates', (req, res) => {
+  const city = req.query.city;
+  if (!city) return res.status(400).json({ error: 'Stadt fehlt' });
+
+  const bookings = db.prepare('SELECT date, requestType FROM bookings WHERE city = ?').all(city);
+  res.json(bookings);
+});
+
 
 // (optional)
 app.get('/api/bookings', (req, res) => {
