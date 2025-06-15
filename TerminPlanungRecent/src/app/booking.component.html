@@ -1,0 +1,120 @@
+<div class="booking-container">
+  <div class="flag-container">
+    <img src="assets/syrian-flag.jpg" alt="علم سوريا" />
+  </div>
+
+  <h1>الجمهورية العربية السورية</h1>
+  <h2>محافظة حلب</h2>
+  <p>يرجى ملء النموذج لحجز موعد</p>
+
+  <form (ngSubmit)="onSubmit()" #bookingForm="ngForm">
+    <!-- نوع الطلب -->
+    <label for="requestType">نوع الطلب:</label>
+    <select
+      id="requestType"
+      name="requestType"
+      required
+      [(ngModel)]="selectedRequest"
+      #requestType="ngModel"
+      class="input-field"
+    >
+      <option value="" disabled>اختر نوع الطلب</option>
+      <option value="اخراج وثائق">إخراج وثائق</option>
+      <option value="تجديد وثائق">تجديد وثائق</option>
+      <option value="طلبات أخرى">طلبات أخرى</option>
+    </select>
+    <div *ngIf="requestType.invalid && requestType.touched" class="error">
+      يرجى اختيار نوع الطلب
+    </div>
+
+    <!-- المدينة -->
+    <label for="city">المدينة:</label>
+    <select
+      id="city"
+      name="city"
+      required
+      [(ngModel)]="city"
+      #cityRef="ngModel"
+      class="input-field"
+    >
+      <option value="Aleppo">حلب</option>
+    </select>
+
+    <!-- الاسم -->
+    <label for="name">الاسم الكامل:</label>
+    <input
+      type="text"
+      id="name"
+      name="name"
+      required
+      [(ngModel)]="name"
+      #nameRef="ngModel"
+      class="input-field"
+    />
+    <div *ngIf="nameRef.invalid && nameRef.touched" class="error">
+      يرجى إدخال الاسم
+    </div>
+
+    <!-- البريد الإلكتروني -->
+    <label for="email">البريد الإلكتروني:</label>
+    <input
+      type="email"
+      id="email"
+      name="email"
+      required
+      [(ngModel)]="email"
+      #emailRef="ngModel"
+      class="input-field"
+    />
+    <div *ngIf="emailRef.invalid && emailRef.touched" class="error">
+      يرجى إدخال بريد إلكتروني صالح
+    </div>
+
+    <!-- الوصف -->
+    <label for="description">وصف الطلب:</label>
+    <textarea
+      id="description"
+      name="description"
+      rows="4"
+      required
+      [(ngModel)]="description"
+      #descriptionRef="ngModel"
+      class="input-field"
+    ></textarea>
+    <div *ngIf="descriptionRef.invalid && descriptionRef.touched" class="error">
+      يرجى كتابة وصف لطلبك
+    </div>
+
+    <!-- التاريخ -->
+    <mat-form-field appearance="fill" class="input-field">
+      <mat-label>اختر التاريخ</mat-label>
+      <input
+        matInput
+        [matDatepicker]="picker"
+        [(ngModel)]="date"
+        name="date"
+        #dateRef="ngModel"
+        required
+        [matDatepickerFilter]="isDateSelectable"
+      />
+      <mat-datepicker-toggle matSuffix [for]="picker"></mat-datepicker-toggle>
+      <mat-datepicker #picker></mat-datepicker>
+    </mat-form-field>
+
+    <div *ngIf="dateRef.invalid && dateRef.touched" class="error">
+      يرجى اختيار التاريخ
+    </div>
+
+    <!-- Anzeige ob Termin frei oder belegt -->
+    <div *ngIf="date && selectedRequest"
+     [style.color]="isDateBooked(date, selectedRequest) ? 'red' : 'green'"
+     style="font-weight: bold; margin-top: 8px;">
+        {{ isDateBooked(date, selectedRequest) ? 'هذا الموعد محجوز' : 'الموعد متاح' }}
+        </div>
+
+
+    <button type="submit" [disabled]="bookingForm.invalid" class="btn-submit">
+      احجز الآن
+    </button>
+  </form>
+</div>
