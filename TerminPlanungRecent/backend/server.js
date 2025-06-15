@@ -3,69 +3,91 @@ const cors = require('cors');
 const db = require('./db');
 const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
+const config = require('./config'); // Neue Konfiguration
+const { Parser } = require('json2csv'); 
+
 
 const app = express();
-const PORT = 4000;
-const SECRET_KEY = 'admin12345';
+
+// Sicherer Transporter mit Konfiguration
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  service: config.email.service,
   auth: {
-    user: 'iptv7845@gmail.com',
-    pass: 'mabnxncvlorjhgaa'
+    user: config.email.user,
+    pass: config.email.pass
   }
 });
 
+// Verbesserte CORS-Konfiguration
 const corsOptions = {
-  origin: 'http://localhost:4200',
+  origin: config.cors.origin,
   allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
 };
 
 app.use(cors(corsOptions));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' })); // Limit hinzugefügt
 
+// Neue Route: CSV-Export für Admin-Buchungen
+app.get('/api/admin/bookings/export', authenticateToken, (req, res) => {
+  try {
+    const bookings = db.prepare('SELECT * FROM bookings ORDER BY date DESC').all();
 
-// Middleware zum Token prüfen
+    if (!bookings.length) {
+      return res.status(404).json({ error: 'Keine Buchungen zum Exportieren vorhanden' });
+    }
+
+    // Felder für CSV definieren
+    const fields = ['id', 'name', 'city', 'date', 'requestType', 'description', 'email', 'created_at', 'status', 'notes'];
+    const json2csvParser = new Parser({ fields });
+    const csv = json2csvParser.parse(bookings);
+
+    // Header setzen, damit Browser CSV als Download interpretiert
+    res.header('Content-Type', 'text/csv');
+    res.attachment('bookings_export.csv');
+    return res.send(csv);
+
+  } catch (error) {
+    console.error('Fehler beim CSV-Export:', error);
+    return res.status(500).json({ error: 'Serverfehler beim Export' });
+  }
+});
+
+// Verbessertes Middleware für Token-Prüfung
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
-  console.log('🔐 AUTH HEADER:', authHeader);
-  console.log('📦 TOKEN:', token);
+  console.log('🔐 AUTH CHECK:', { hasToken: !!token, endpoint: req.path });
 
-  if (!token) return res.sendStatus(401);
+  if (!token) {
+    return res.status(401).json({ error: 'Access Token erforderlich' });
+  }
 
-  jwt.verify(token, SECRET_KEY, (err, user) => {
+  jwt.verify(token, config.jwtSecret, (err, user) => {
     if (err) {
-      console.log('❌ JWT Verification Error:', err);
-      return res.sendStatus(403);
+      console.log('❌ JWT Verification Error:', err.message);
+      return res.status(403).json({ error: 'Ungültiger oder abgelaufener Token' });
     }
     req.user = user;
     next();
   });
 }
 
+// ===== 4. GESICHERTE ADMIN-ROUTEN =====
 
-// Admin-Buchungen - geschützte Route
+// Admin-Buchungen abrufen (bereits geschützt)
 app.get('/api/admin/bookings', authenticateToken, (req, res) => {
-  const bookings = db.prepare('SELECT * FROM bookings').all();
-  res.json(bookings);
-});
-
-
-// POST: Admin Login
-app.post('/api/login', (req, res) => {
-  const { username, password } = req.body;
-
-  // Einfacher Login – später Datenbank oder .env verwenden
-  if (username === 'admin' && password === 'admin123') {
-    const token = jwt.sign({ username }, SECRET_KEY, { expiresIn: '1h' });
-    return res.json({ token });
-  } else {
-    return res.status(401).json({ error: 'بيانات الدخول غير صحيحة' });
+  try {
+    const bookings = db.prepare('SELECT * FROM bookings ORDER BY date DESC').all();
+    res.json(bookings);
+  } catch (error) {
+    console.error('Fehler beim Laden der Buchungen:', error);
+    res.status(500).json({ error: 'Serverfehler beim Laden der Buchungen' });
   }
 });
 
-// ✅ DELETE: Buchung löschen
+// ✅ DELETE-Route
 app.delete('/api/admin/bookings/:id', (req, res) => {
   const { id } = req.params;
   const stmt = db.prepare('DELETE FROM bookings WHERE id = ?');
@@ -78,68 +100,170 @@ app.delete('/api/admin/bookings/:id', (req, res) => {
   }
 });
 
-// POST: Neue Buchung speichern
-app.post('/api/book', (req, res) => {
+// ===== 5. VERBESSERTE BUCHUNGSLOGIK =====
+
+// Korrigierte API für belegte Termine
+app.get('/api/booked-dates', (req, res) => {
+  const { city } = req.query;
+  
+  if (!city) {
+    return res.status(400).json({ error: 'Stadt-Parameter ist erforderlich' });
+  }
+
+  try {
+    const bookings = db.prepare(
+      'SELECT date, requestType FROM bookings WHERE city = ? ORDER BY date'
+    ).all(city);
+    
+    console.log(`📅 Geladene Termine für ${city}:`, bookings.length);
+    res.json(bookings);
+  } catch (error) {
+    console.error('Fehler beim Laden der Termine:', error);
+    res.status(500).json({ error: 'Serverfehler beim Laden der Termine' });
+  }
+});
+
+// Verbesserte Buchungslogik mit besserer Validierung
+app.post('/api/book', async (req, res) => {
   const { name, city, date, requestType, description, email } = req.body;
 
-  if (!name || !city || !date || !requestType || !description || !email) {
-    return res.status(400).json({ error: 'املا الكل من فضلك' });
+  // Umfangreiche Validierung
+  const errors = [];
+  
+  if (!name || name.trim().length < 2) errors.push('Name muss mindestens 2 Zeichen haben');
+  if (!city) errors.push('Stadt ist erforderlich');
+  if (!date) errors.push('Datum ist erforderlich');
+  if (!requestType) errors.push('Anfrageart ist erforderlich');
+  if (!description || description.trim().length < 10) errors.push('Beschreibung muss mindestens 10 Zeichen haben');
+  if (!email || !email.includes('@')) errors.push('Gültige E-Mail-Adresse erforderlich');
+
+  // Datum-Validierung
+  const selectedDate = new Date(date);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  if (selectedDate < today) {
+    errors.push('Datum kann nicht in der Vergangenheit liegen');
   }
 
-  // Prüfen, ob Termin schon gebucht ist
-  const existingBooking = db.prepare(`
-    SELECT * FROM bookings 
-    WHERE date = ? AND city = ? AND requestType = ?
-  `).get(date, city, requestType);
-
-  if (existingBooking) {
-    return res.status(409).json({ error: 'هذا الموعد محجوز بالفعل' }); // Conflict
+  if (errors.length > 0) {
+    return res.status(400).json({ error: errors.join(', ') });
   }
 
-  // Termin ist frei -> Eintragen
-  const stmt = db.prepare(`
-    INSERT INTO bookings (name, city, date, requestType, description, email)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `);
-  const info = stmt.run(name, city, date, requestType, description, email);
+  try {
+    // Prüfen auf Doppelbuchung
+    const existingBooking = db.prepare(`
+      SELECT id FROM bookings 
+      WHERE date = ? AND city = ? AND requestType = ?
+    `).get(date, city, requestType);
 
-  console.log('تم الحفظ تحت الرقم:', info.lastInsertRowid);
+    if (existingBooking) {
+      return res.status(409).json({ 
+        error: 'هذا الموعد محجوز بالفعل',
+        code: 'SLOT_ALREADY_BOOKED'
+      });
+    }
 
-  // E-Mail senden
+    // Buchung erstellen
+    const stmt = db.prepare(`
+      INSERT INTO bookings (name, city, date, requestType, description, email, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+    
+    const info = stmt.run(
+      name.trim(), 
+      city, 
+      date, 
+      requestType, 
+      description.trim(), 
+      email.trim(),
+      new Date().toISOString()
+    );
+
+    console.log('✅ Neue Buchung erstellt:', info.lastInsertRowid);
+
+    // E-Mail senden (verbessert)
+    await sendConfirmationEmail({
+      to: email,
+      name: name.trim(),
+      city,
+      date,
+      requestType,
+      description: description.trim(),
+      bookingId: info.lastInsertRowid
+    });
+
+    res.status(201).json({ 
+      message: 'تم الحجز بنجاح!',
+      bookingId: info.lastInsertRowid 
+    });
+
+  } catch (error) {
+    console.error('Fehler bei Buchung:', error);
+    res.status(500).json({ error: 'Serverfehler bei der Buchung' });
+  }
+});
+
+// ===== 6. VERBESSERTE E-MAIL-FUNKTION =====
+
+async function sendConfirmationEmail({ to, name, city, date, requestType, description, bookingId }) {
   const mailOptions = {
-    from: 'iptv7845@gmail.com',
-    to: email,
-    subject: 'تأكيد حجز الموعد',
-    text: `مرحباً ${name},\n\nتم تسجيل حجزك بنجاح في ${city} بتاريخ ${date}.\nنوع الطلب: ${requestType}\nتفاصيل الطلب: ${description}\n\nشكراً لاستخدامك خدمتنا!`
+    from: `"Terminbuchung System" <${config.email.user}>`,
+    to: to,
+    subject: 'تأكيد حجز الموعد - Terminbestätigung',
+    html: `
+      <div style="font-family: Arial, sans-serif; direction: rtl; text-align: right;">
+        <h2 style="color: #2980b9;">تأكيد حجز الموعد</h2>
+        <p><strong>مرحباً ${name}،</strong></p>
+        <p>تم تسجيل حجزك بنجاح. إليك تفاصيل الحجز:</p>
+        
+        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0;">
+          <p><strong>رقم الحجز:</strong> #${bookingId}</p>
+          <p><strong>المدينة:</strong> ${city}</p>
+          <p><strong>التاريخ:</strong> ${date}</p>
+          <p><strong>نوع الطلب:</strong> ${requestType}</p>
+          <p><strong>الوصف:</strong> ${description}</p>
+        </div>
+        
+        <p style="color: #e74c3c;"><strong>هام:</strong> يرجى الحضور في الموعد المحدد مع الوثائق المطلوبة.</p>
+        <p>شكراً لاستخدامك خدمتنا!</p>
+      </div>
+    `
   };
 
-  transporter.sendMail(mailOptions, (error, info) => {
-    if (error) {
-      console.error('خطأ في إرسال البريد الإلكتروني:', error);
-    } else {
-      console.log('تم إرسال البريد الإلكتروني:', info.response);
-    }
-  });
+  try {
+    const info = await transporter.sendMail(mailOptions);
+    console.log('📧 E-Mail gesendet:', info.messageId);
+    return true;
+  } catch (error) {
+    console.error('❌ E-Mail-Fehler:', error);
+    return false;
+  }
+}
 
-  res.status(201).json({ message: 'تم الحجز بنجاح!' });
+// POST: Admin Login
+app.post('/api/login', (req, res) => {
+  const { username, password } = req.body;
+
+  // Einfacher Login – später Datenbank oder .env verwenden
+  if (username === 'admin' && password === 'admin123') {
+    const token = jwt.sign({ username }, config.jwtSecret, { expiresIn: '1h' });
+    return res.json({ token });
+  } else {
+    return res.status(401).json({ error: 'بيانات الدخول غير صحيحة' });
+  }
 });
 
-// Hole alle belegten Termine für eine Stadt (optional auch requestType)
-app.get('/api/booked-dates', (req, res) => {
-  const city = req.query.city;
-  if (!city) return res.status(400).json({ error: 'Stadt fehlt' });
-
-  const bookings = db.prepare('SELECT date, requestType FROM bookings WHERE city = ?').all(city);
-  res.json(bookings);
+// Server mit verbesserter Konfiguration starten
+app.listen(config.port, () => {
+  console.log(`🚀 Server läuft auf http://localhost:${config.port}`);
+  console.log(`📧 E-Mail konfiguriert: ${config.email.user}`);
+  console.log(`🔒 JWT-Secret: ${config.jwtSecret.substring(0, 8)}...`);
 });
 
-
-// (optional)
-app.get('/api/bookings', (req, res) => {
-  const bookings = db.prepare('SELECT * FROM bookings').all();
-  res.json(bookings);
-});
-
-app.listen(PORT, () => {
-  console.log(`🚀 Server läuft auf http://localhost:${PORT}`);
+// Graceful Shutdown
+process.on('SIGTERM', () => {
+  console.log('🛑 Server wird heruntergefahren...');
+  db.close();
+  process.exit(0);
 });

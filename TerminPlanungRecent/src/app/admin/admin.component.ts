@@ -44,8 +44,30 @@ export class AdminComponent implements OnInit {
     }
   }
 
+
   logout() {
     localStorage.removeItem('token');  // Token löschen
     this.router.navigate(['/login']);   // Zur Login-Seite navigieren
   }
+
+downloadCSV() {
+  const token = localStorage.getItem('token');
+  const headers = new HttpHeaders({ Authorization: `Bearer ${token}` });
+
+  this.http.get('http://localhost:4000/api/admin/bookings/export', {
+    headers,
+    responseType: 'blob'  // wichtig, um die Datei als Blob zu erhalten
+  }).subscribe(blob => {
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'bookings_export.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  }, error => {
+    console.error('Fehler beim Download:', error);
+    alert('Fehler beim Herunterladen der CSV-Datei');
+  });
+}
+
 }
