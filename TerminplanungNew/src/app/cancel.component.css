@@ -1,0 +1,19 @@
+.cancel-container {
+  text-align: center;
+  padding: 50px;
+  margin: 50px auto;
+  max-width: 600px;
+  background-color: #f8f9fa;
+  border-radius: 12px;
+  box-shadow: 0 0 15px rgba(0,0,0,0.1);
+  font-family: Arial, sans-serif;
+  direction: rtl;
+}
+
+.cancel-container h2 {
+  color: #2ecc71;
+}
+
+.cancel-container.error h2 {
+  color: #e74c3c;
+}
