@@ -1,0 +1,9 @@
+<div class="cancel-container" *ngIf="success">
+  <h2>✅ تم إلغاء الحجز بنجاح</h2>
+  <p>شكراً لاستخدامك منصتنا.</p>
+</div>
+
+<div class="cancel-container error" *ngIf="error">
+  <h2>❌ فشل في إلغاء الحجز</h2>
+  <p>الرابط غير صالح أو منتهي الصلاحية.</p>
+</div>
