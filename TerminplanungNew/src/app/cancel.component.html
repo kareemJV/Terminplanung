@@ -1,9 +1,19 @@
+<div class="cancel-container" *ngIf="booking && !success">
+  <h2>🗓️ تفاصيل الحجز</h2>
+  <p>الاسم: <strong>{{ booking.name }}</strong></p>
+  <p>المدينة: <strong>{{ booking.city }}</strong></p>
+  <p>التاريخ: <strong>{{ booking.date }}</strong></p>
+  <p>نوع الطلب: <strong>{{ booking.requestType }}</strong></p>
+
+  <button (click)="cancelBooking()">❌ إلغاء الموعد</button>
+</div>
+
 <div class="cancel-container" *ngIf="success">
   <h2>✅ تم إلغاء الحجز بنجاح</h2>
   <p>شكراً لاستخدامك منصتنا.</p>
 </div>
 
 <div class="cancel-container error" *ngIf="error">
-  <h2>❌ فشل في إلغاء الحجز</h2>
+  <h2>❌ فشل في تحميل أو إلغاء الحجز</h2>
   <p>الرابط غير صالح أو منتهي الصلاحية.</p>
 </div>

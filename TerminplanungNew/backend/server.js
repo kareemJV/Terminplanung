@@ -5,8 +5,6 @@ const nodemailer = require('nodemailer');
 const jwt = require('jsonwebtoken');
 const config = require('./config'); // Neue Konfiguration
 const { Parser } = require('json2csv'); 
-
-
 const app = express();
 
 // Sicherer Transporter mit Konfiguration
@@ -88,40 +86,59 @@ app.get('/api/admin/bookings', authenticateToken, (req, res) => {
 });
 
 // ✅ DELETE-Route
-app.delete('/api/admin/bookings/:id', (req, res) => {
+app.delete('/api/admin/bookings/:id', async (req, res) => {
   const { id } = req.params;
-  const stmt = db.prepare('DELETE FROM bookings WHERE id = ?');
-  const result = stmt.run(id);
 
-  if (result.changes > 0) {
-    res.json({ message: 'تم الحذف.' });
-  } else {
-    res.status(404).json({ error: 'لم يوجد الحجز' });
+  try {
+    // Hole Termin-Daten vor dem Löschen
+    const booking = db.prepare('SELECT * FROM bookings WHERE id = ?').get(id);
+
+    if (!booking) {
+      return res.status(404).json({ error: 'لم يوجد الحجز' });
+    }
+
+    // Löschen
+    const result = db.prepare('DELETE FROM bookings WHERE id = ?').run(id);
+
+    if (result.changes > 0) {
+      // ✅ E-Mail nach erfolgreichem Löschen senden
+      await sendCancellationEmail(booking.email, booking.date);
+      return res.json({ message: 'تم الحذف.' });
+    } else {
+      return res.status(404).json({ error: 'لم يوجد الحجز' });
+    }
+  } catch (error) {
+    console.error('Fehler beim Löschen:', error);
+    return res.status(500).json({ error: 'Serverfehler beim Löschen' });
   }
 });
+
 
 // ===== 5. VERBESSERTE BUCHUNGSLOGIK =====
 
 // Korrigierte API für belegte Termine
-app.get('/api/booked-dates', (req, res) => {
-  const { city } = req.query;
-  
-  if (!city) {
-    return res.status(400).json({ error: 'Stadt-Parameter ist erforderlich' });
-  }
+app.get('/booking/:bookingId/:token', (req, res) => {
+  const { bookingId, token } = req.params;
 
   try {
-    const bookings = db.prepare(
-      'SELECT date, requestType FROM bookings WHERE city = ? ORDER BY date'
-    ).all(city);
-    
-    console.log(`📅 Geladene Termine für ${city}:`, bookings.length);
-    res.json(bookings);
-  } catch (error) {
-    console.error('Fehler beim Laden der Termine:', error);
-    res.status(500).json({ error: 'Serverfehler beim Laden der Termine' });
+    const decoded = jwt.verify(token, config.jwtSecret);
+    if (decoded.bookingId !== parseInt(bookingId)) {
+      return res.status(403).json({ error: 'Ungültiger Token.' });
+    }
+
+    const booking = db.prepare('SELECT id, name, city, date, requestType FROM bookings WHERE id = ?').get(bookingId);
+    if (!booking) {
+      return res.status(404).json({ error: 'Termin nicht gefunden' });
+    }
+
+    return res.json(booking);
+
+  } catch (err) {
+    console.error('Fehler:', err);
+    res.status(400).json({ error: 'Ungültiger oder abgelaufener Link.' });
   }
-});
+
+})
 
 // Verbesserte Buchungslogik mit besserer Validierung
 app.post('/api/book', async (req, res) => {
@@ -207,6 +224,10 @@ app.post('/api/book', async (req, res) => {
 // ===== 6. VERBESSERTE E-MAIL-FUNKTION =====
 
 async function sendConfirmationEmail({ to, name, city, date, requestType, description, bookingId }) {
+  // JWT erstellen für Stornierung – gültig für z.B. 24h
+  const cancelToken = jwt.sign({ bookingId }, config.jwtSecret, { expiresIn: '24h' });
+  const cancelUrl = `${config.clientBaseUrl}/cancel/${bookingId}/${cancelToken}`;
+
   const mailOptions = {
     from: `"Terminbuchung System" <${config.email.user}>`,
     to: to,
@@ -224,8 +245,13 @@ async function sendConfirmationEmail({ to, name, city, date, requestType, descri
           <p><strong>نوع الطلب:</strong> ${requestType}</p>
           <p><strong>الوصف:</strong> ${description}</p>
         </div>
-        
-        <p style="color: #e74c3c;"><strong>هام:</strong> يرجى الحضور في الموعد المحدد مع الوثائق المطلوبة.</p>
+
+        <p style="color: #e74c3c;">
+          <strong>هل تريد إلغاء الموعد؟</strong><br/>
+          يمكنك ذلك من خلال الضغط على الرابط التالي:
+        </p>
+        <p><a href="${cancelUrl}" style="color: #c0392b; font-weight: bold;">إلغاء الحجز</a></p>
+
         <p>شكراً لاستخدامك خدمتنا!</p>
       </div>
     `
@@ -240,6 +266,34 @@ async function sendConfirmationEmail({ to, name, city, date, requestType, descri
     return false;
   }
 }
+
+
+async function sendCancellationEmail(userEmail, terminDetails, bookingId, city, date) {
+
+  try {
+    await transporter.sendMail({
+      from: `"منصة الحجز الالكترونية" <${config.email.user}>`,
+      to: userEmail,
+      subject: 'تم الغاء حجزك',
+      html: `
+        <div style="font-family: Arial, sans-serif; direction: rtl; text-align: right;">
+          <h3 style="color: #e74c3c;">تم إلغاء حجزك</h3>
+          <p>رقم الحجز: <strong>#${bookingId}</strong></p>
+          <p>المدينة: <strong>${city}</strong></p>
+          <p>التاريخ والوقت: <strong>${date}</strong></p>
+          <br/>
+          <p>إذا كان هذا خطأ، يرجى الاتصال بنا في أقرب وقت ممكن.</p>
+        </div>
+      `,
+    });
+
+    console.log(`📧 Stornierungs-E-Mail an ${userEmail} gesendet.`);
+  } catch (err) {
+    console.error('❌ Fehler beim Senden der Stornierungs-E-Mail:', err);
+  }
+}
+
+
 
 // POST: Admin Login
 app.post('/api/login', (req, res) => {
@@ -260,6 +314,7 @@ app.listen(config.port, () => {
   console.log(`📧 E-Mail konfiguriert: ${config.email.user}`);
   console.log(`🔒 JWT-Secret: ${config.jwtSecret.substring(0, 8)}...`);
 });
+
 
 // Graceful Shutdown
 process.on('SIGTERM', () => {

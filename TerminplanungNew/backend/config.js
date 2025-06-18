@@ -13,10 +13,10 @@ const config = {
   },
   cors: {
     origin: process.env.CORS_ORIGIN || 'http://localhost:4200'
-  }
+  },
+  clientBaseUrl: process.env.CLIENT_BASE_URL || 'http://localhost:4000'
 };
 
-// Validierung kritischer Konfigurationen
 if (!config.email.user || !config.email.pass) {
   console.error('❌ EMAIL_USER und EMAIL_PASS müssen in .env gesetzt werden!');
   process.exit(1);

@@ -8,6 +8,9 @@ import { NgIf } from '@angular/common';
 import { MatNativeDateModule } from '@angular/material/core';
 import { ActivatedRoute } from '@angular/router';
 
+// Importiere environment für API-URL
+import { environment } from '../enviroment/environment';
+
 @Component({
   selector: 'app-booking',
   standalone: true,
@@ -51,15 +54,14 @@ export class BookingAleppoComponent implements OnInit {
     this.fetchBookedDates();
   }
 
-  // ✅ KORRIGIERTE FUNKTION - jetzt mit city Parameter
   fetchBookedDates() {
     if (!this.city) {
       console.error('Stadt nicht definiert');
       return;
     }
 
-    // Korrekte API-Abfrage mit city Parameter
-    fetch(`http://localhost:4000/api/booked-dates?city=${encodeURIComponent(this.city)}`)
+    // API-URL aus environment verwenden
+    fetch(`${environment.apiUrl}/booked-dates?city=${encodeURIComponent(this.city)}`)
       .then(res => {
         if (!res.ok) {
           throw new Error(`HTTP ${res.status}: ${res.statusText}`);
@@ -92,20 +94,16 @@ export class BookingAleppoComponent implements OnInit {
     );
   }
 
-  // ✅ VERBESSERTE DATUMS-VALIDIERUNG
   isDateSelectable = (d: Date | null): boolean => {
     if (!d) return false;
     
-    // Vergangenheit blockieren
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     if (d < today) return false;
     
-    // Wochenenden blockieren (optional)
     const dayOfWeek = d.getDay();
     if (dayOfWeek === 5 || dayOfWeek === 6) return false; // Freitag/Samstag
     
-    // Bereits gebuchte Termine blockieren
     return !this.isDateBooked(d, this.selectedRequest);
   };
 
@@ -118,7 +116,6 @@ export class BookingAleppoComponent implements OnInit {
     return 'available-date';
   };
 
-  // ✅ VERBESSERTE VALIDIERUNG
   validateForm(): boolean {
     this.errors = [];
 
@@ -151,7 +148,6 @@ export class BookingAleppoComponent implements OnInit {
     return this.errors.length === 0;
   }
 
-  // ✅ VERBESSERTE SUBMIT-FUNKTION
   async onSubmit() {
     if (!this.validateForm()) {
       return;
@@ -168,7 +164,7 @@ export class BookingAleppoComponent implements OnInit {
     const normalizedDate = this.normalizeDate(this.date!);
 
     try {
-      const response = await fetch('http://localhost:4000/api/book', {
+      const response = await fetch(`${environment.apiUrl}/book`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -187,7 +183,6 @@ export class BookingAleppoComponent implements OnInit {
         throw new Error(data.error || `HTTP ${response.status}`);
       }
 
-      // Erfolg
       alert(
         `تم الحجز بنجاح!\n` +
         `الاسم: ${this.name}\n` +
@@ -197,10 +192,7 @@ export class BookingAleppoComponent implements OnInit {
         `رقم الحجز: #${data.bookingId}`
       );
 
-      // Formular zurücksetzen
       this.resetForm();
-      
-      // Belegte Termine neu laden
       this.fetchBookedDates();
 
     } catch (error: any) {
@@ -220,7 +212,6 @@ export class BookingAleppoComponent implements OnInit {
     this.errors = [];
   }
 
-  // Hilfsfunktion für Template
   get hasErrors(): boolean {
     return this.errors.length > 0;
   }
